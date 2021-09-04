@@ -1,0 +1,31 @@
+version: '3.9'
+
+services: 
+  app:
+    build: 
+      context: .
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    ports: 
+      - 8000:8000
+    volumes: 
+      - ./app:/app
+    environment: 
+      - SECRET_KEY=^ua)^lrc*+lx8ry!&k@74jbsdqzjs05(rdwj&ixbc5g_lyojys
+      - DEBUG=1
+      - ALLOWED_HOSTS=127.0.0.1
+      - ALLOWED_CORS=http://127.0.0.1:3000,http://127.0.0.1,http://127.0.0.1:8000
+      - DB_HOST=rentyug-database-1.crbmesc8verl.ap-south-1.rds.amazonaws.com
+      - DB_NAME=rentyug-live
+      - DB_USER=postgres
+      - DB_PASS=db-rentyug
+      - DB_PORT=5432
+      - AWS_ACCESS_KEY_ID=AKIAW23F7TJBJ5ELCMOE
+      - AWS_SECRET_ACCESS_KEY=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
+      - AWS_STORAGE_BUCKET_NAME=rentyug-bucket
+      - AWS_S3_REGION_NAME=ap-south-1
+      - AWS_S3_SIGNATURE_VERSION=s3v4
+      - AWS_S3_FILE_OVERWRITE=0
+      - AWS_QUERYSTING_AUTH=0
+      - DEFAULT_FILE_STORAGE=storages.backends.s3boto3.S3Boto3Storage

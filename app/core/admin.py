@@ -1,0 +1,45 @@
+from django.contrib import admin
+from .models import (
+    Images,
+    ServicesCatagory,
+    SearchName,
+    PostCommentsReplies,
+    PostComments,
+    Post,
+    Service,
+    Feedbacks,
+    Profile,
+    ServiceFeedback,
+    Plans,
+    FrontPageFeedback,
+    Messages,
+    MessageBox,
+    FAQ,
+    InterestedService,
+    TotalHits,
+    TotalHitsPerPersonPerDay,
+    LastSearchedTag,
+)
+
+# Register your models here.
+
+
+admin.site.register(Images)
+admin.site.register(ServicesCatagory)
+admin.site.register(SearchName)
+admin.site.register(PostCommentsReplies)
+admin.site.register(PostComments)
+admin.site.register(Post)
+admin.site.register(Service)
+admin.site.register(Profile)
+admin.site.register(Feedbacks)
+admin.site.register(ServiceFeedback)
+admin.site.register(Plans)
+admin.site.register(FrontPageFeedback)
+admin.site.register(Messages)
+admin.site.register(FAQ)
+admin.site.register(MessageBox)
+admin.site.register(InterestedService)
+admin.site.register(TotalHits)
+admin.site.register(TotalHitsPerPersonPerDay)
+admin.site.register(LastSearchedTag)
