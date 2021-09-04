@@ -1,21 +1,14 @@
-version: '3.9'
+version: "3.9"
 
-services: 
+services:
   app:
-    build: 
+    build:
       context: .
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8000"
-    ports: 
-      - 8000:8000
+    restart: always
     volumes:
-      - ./app:/app
-      - ./data/web:/vol/web
-    volumes: 
-      - ./app:/app
+      - static-data:/vol/web
     environment: 
-      - SECRET_KEY=^ua)^lrc*+lx8ry!&k@74jbsdqzjs05(rdwj&ixbc5g_lyojys
+      - SECRET_KEY=epb!(8jk*_uon!vlulwt_&3(w)8789frp5euuc@fpt^@kz4pt6
       - DEBUG=1
       - ALLOWED_HOSTS=127.0.0.1
       - ALLOWED_CORS=http://127.0.0.1:3000,http://127.0.0.1,http://127.0.0.1:8000
@@ -32,3 +25,17 @@ services:
       - AWS_S3_FILE_OVERWRITE=0
       - AWS_QUERYSTING_AUTH=0
       - DEFAULT_FILE_STORAGE=storages.backends.s3boto3.S3Boto3Storage
+
+  proxy:
+    build:
+      context: ./proxy
+    restart: always
+    depends_on:
+      - app
+    ports:
+      - 80:8000
+    volumes:
+      - static-data:/vol/static
+
+volumes:
+  static-data:

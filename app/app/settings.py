@@ -8,9 +8,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY') 
 
 
-#'epb!(8jk*_uon!vlulwt_&3(w)8789frp5euuc@fpt^@kz4pt6'
-
-
 DEBUG = bool(int(os.environ.get('DEBUG', 0)))
 
 ALLOWED_HOSTS = []
@@ -128,11 +125,9 @@ USE_TZ = True
 
 
 
-STATIC_URL = '/static/'
+STATIC_URL = '/static/static/'
 
-STATICFILES = [
-    Path(BASE_DIR,'statics'),
-]
+STATIC_ROOT = '/vol/web/static'
 
 
 MEDIA_URL = '/media/'
