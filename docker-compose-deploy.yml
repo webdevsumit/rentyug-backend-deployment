@@ -8,14 +8,13 @@ services:
     volumes:
       - static-data:/vol/web
     environment: 
-      - SECRET_KEY=epb!(8jk*_uon!vlulwt_&3(w)8789frp5euuc@fpt^@kz4pt6
-      - ALLOWED_HOSTS=127.0.0.1
-      - ALLOWED_CORS=http://127.0.0.1:3000,http://127.0.0.1,http://127.0.0.1:8000
-      - DB_HOST=rentyug-database-1.crbmesc8verl.ap-south-1.rds.amazonaws.com
-      - DB_NAME=rentyug-live
-      - DB_USER=postgres
-      - DB_PASS=db-rentyug
-      - DB_PORT=5432
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+      - ALLOWED_CORS=${ALLOWED_CORS}
+      - DB_HOST=db
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
       - AWS_ACCESS_KEY_ID=AKIAW23F7TJBJ5ELCMOE
       - AWS_SECRET_ACCESS_KEY=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
       - AWS_STORAGE_BUCKET_NAME=rentyug-bucket
@@ -24,6 +23,18 @@ services:
       - AWS_S3_FILE_OVERWRITE=0
       - AWS_QUERYSTING_AUTH=0
       - DEFAULT_FILE_STORAGE=storages.backends.s3boto3.S3Boto3Storage
+    depends_on:
+      - db
+
+  db:
+    image: postgres:13-alpine
+    restart: always
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
 
   proxy:
     build:
@@ -37,4 +48,5 @@ services:
       - static-data:/vol/static
 
 volumes:
+  postgres-data:
   static-data:
