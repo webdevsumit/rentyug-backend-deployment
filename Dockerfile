@@ -1,5 +1,5 @@
 FROM python:3.9-alpine3.13
-LABEL maintainer="rentyug.com"
+LABEL maintainer="rentyug-backend.live"
 
 ENV PYTHONUNBUFFERED 1
 

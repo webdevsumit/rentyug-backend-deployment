@@ -1,6 +1,8 @@
 FROM nginxinc/nginx-unprivileged:1-alpine
-LABEL maintainer="rentyug.com"
+LABEL maintainer="rentyug-backend.live"
 
+COPY ./nginx/certs/certificate.crt /etc/nginx/certs/certificate.crt
+COPY ./nginx/certs/private.key /etc/nginx/certs/private.key
 COPY ./default.conf.tpl /etc/nginx/default.conf.tpl
 COPY ./uwsgi_params /etc/nginx/uwsgi_params
 COPY ./run.sh /run.sh
