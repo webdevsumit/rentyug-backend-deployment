@@ -47,6 +47,8 @@ services:
       - 443:443
     volumes:
       - static-data:/vol/static
+      - ./nginx/certs/certificate.crt /etc/nginx/certs/certificate.crt
+      - ./nginx/certs/private.key /etc/nginx/certs/private.key
 
 volumes:
   postgres-data:
