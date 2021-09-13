@@ -119,7 +119,7 @@ class ServiceSerializerForMainPage(serializers.ModelSerializer):
     class Meta:
         model = Service
         fields = ('id','Rating', 'Type', 'MainImage', 'ShopName', 'PriceType',
-                 'OpenTime', 'closeTime','VStatus','RentalStatus','lat','lng')
+                 'OpenTime', 'closeTime','VStatus','RentalStatus','lat','lng','Description')
 
 
 class ServiceSerializerForPost(serializers.ModelSerializer):

@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.models import User
 from django.contrib.auth import (authenticate,login,logout)
+from django.db.models import Q
 import datetime
 
 from rest_framework.permissions import IsAuthenticated
@@ -739,7 +740,7 @@ def search(request):
 
     s_data = {}
     
-    s_data['data'] = ServiceSerializer(Service.objects.filter(SearchNames__Name=searchName), many=True, 
+    s_data['data'] = ServiceSerializer(Service.objects.filter(Q(SearchNames__Name=searchName) | Q(ShopName__icontains=searchName) | Q(Description__icontains=searchName)), many=True, 
     context={'request':request}).data
 
     if request.data['Username'] is not None:

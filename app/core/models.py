@@ -72,7 +72,7 @@ class Post(models.Model):
 
 
 class Service(models.Model):
-    Rating = models.FloatField(default=3)
+    Rating = models.FloatField(default=4)
     RatedBy = models.ManyToManyField(User, blank = True)
     ServiceImages = models.ManyToManyField(Images, blank=True)
     MainImage = models.ImageField(upload_to='serviceMainImages')
@@ -128,6 +128,18 @@ class Profile(models.Model):
 
     def __str__(self):
         return self.User.username
+
+
+class RequestedService(models.Model):
+    User = models.OneToOneField(User, on_delete=models.CASCADE)
+    Title = models.CharField(max_length=100)
+    Description = models.TextField()
+    ContactInfo = models.CharField(max_length=100)
+    Date = models.DateField(auto_now=True)
+    completed = models.BooleanField(default=False)
+
+    def __str__(self) -> str:
+        return self.Title
 
 
 class InterestedService(models.Model):
