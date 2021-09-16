@@ -1,3 +1,4 @@
+from django.db.models import fields
 from .models import *
 from rest_framework import serializers
 from django.contrib.auth.models import User
@@ -18,6 +19,7 @@ from .models import (
     Messages,
     MessageBox,
     FAQ,
+    RequestedService,
     InterestedService,
     TotalHits,
     TotalHitsPerPersonPerDay,
@@ -139,6 +141,12 @@ class ProfileSerializer(serializers.ModelSerializer):
     SavedServices = ServiceSerializer(many=True)
     class Meta:
         model = Profile
+        fields = '__all__'
+
+class RequestedServiceSerializer(serializers.ModelSerializer):
+    User = UserSerializer()
+    class Meta:
+        model = RequestedService
         fields = '__all__'
 
 

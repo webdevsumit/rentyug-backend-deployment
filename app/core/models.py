@@ -131,7 +131,7 @@ class Profile(models.Model):
 
 
 class RequestedService(models.Model):
-    User = models.OneToOneField(User, on_delete=models.CASCADE)
+    User = models.ForeignKey(User, on_delete=models.CASCADE)
     Title = models.CharField(max_length=100)
     Description = models.TextField()
     ContactInfo = models.CharField(max_length=100)

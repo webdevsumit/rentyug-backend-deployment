@@ -50,6 +50,9 @@ from .views import (mainPageData,
                     activatePostTogle,
                     addNewPost,
                     savedServices,
+                    requestedServices,
+                    completedRequestService,
+                    addingServiceRequest,
                     )
 
 app_name = 'main'
@@ -106,6 +109,9 @@ urlpatterns = [
     path('activatePostTogle/',activatePostTogle,name='activatePostTogle'),
     path('addNewPost/',addNewPost,name='addNewPost'),
     path('savedServices/',savedServices,name='savedServices'),
+    path('requestedServices/',requestedServices,name='requestedServices'),
+    path('completedRequestService/',completedRequestService,name='completedRequestService'),
+    path('addingServiceRequest/',addingServiceRequest,name='addingServiceRequest'),
     
 ]
 

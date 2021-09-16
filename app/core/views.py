@@ -33,6 +33,7 @@ from .models import (
     TotalHits,
     TotalHitsPerPersonPerDay,
     LastSearchedTag,
+    RequestedService,
 )
 
 from .serializers import (
@@ -48,6 +49,7 @@ from .serializers import (
     MessagesSerializer,
     FAQSerializer,
     InterestedServiceSerializer,
+    RequestedServiceSerializer,
 )
 
 
@@ -1221,4 +1223,39 @@ def savedServices(request):
 
 
 
+@api_view(['GET'])
+def requestedServices(request):
+        
+    data={}
+    data['data']=RequestedServiceSerializer(RequestedService.objects.filter(completed=False), many=True, 
+            context={'request':request}).data
+    return Response(data)
 
+
+@api_view(['POST'])
+def completedRequestService(request):
+    data={}
+
+    toComplete = RequestedService.objects.get(id=request.data['id'])
+    toComplete.completed=True
+    toComplete.save()
+
+    data['msg']='Successfull'
+    return Response(data)
+
+
+@api_view(['POST'])
+def addingServiceRequest(request):
+    user = User.objects.get(username=request.data['username'])
+    newData = RequestedService.objects.create(
+        User = user,
+        Title = request.data['title'],
+        Description = request.data['description'],
+        ContactInfo = request.data['contactInfo']
+    )
+
+    newData.save()
+    data={}
+    data['data']=RequestedServiceSerializer(RequestedService.objects.filter(completed=False), many=True, 
+            context={'request':request}).data
+    return Response(data)

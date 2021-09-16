@@ -19,6 +19,7 @@ from .models import (
     TotalHits,
     TotalHitsPerPersonPerDay,
     LastSearchedTag,
+    RequestedService,
 )
 
 # Register your models here.
@@ -43,3 +44,4 @@ admin.site.register(InterestedService)
 admin.site.register(TotalHits)
 admin.site.register(TotalHitsPerPersonPerDay)
 admin.site.register(LastSearchedTag)
+admin.site.register(RequestedService)
