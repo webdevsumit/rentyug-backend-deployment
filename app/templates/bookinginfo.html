@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mail from RentYug</title>
+</head>
+<style>
+    body{
+        margin: 30px;
+        padding: 20px;
+        box-shadow: 1px 1px 8px 3px rgb(136, 133, 133);
+    }
+
+    .head{
+        width: 100%;
+        margin: 20px auto;
+        text-align: center;
+    }
+
+    a{
+        color: orange;
+    }
+</style>
+<body>
+    <h1>Dear Team Member</h1>
+
+    <br/>
+    <p>You have to call a person in less than 5 minutes.</p>
+    <p>Please hurry up.</p>
+    <p>All details are there please do it soon and don't forget to put the order in the table.</p>
+    <p>
+        <h2>Consumer's Details</h2>
+        <ul>
+            <li>Username : {{ConsumerUsername}}</li>
+            <li>Name : {{ConsumerName}}</li>
+            <li>Mobile No : <a href='tel:{{ConsumerMoNo}}'>{{ConsumerMoNo}}</a></li>
+        </ul>
+        <h2>Provider's Details</h2>
+        <ul>
+            <li>Username : {{providerUsername}}</li>
+            <li>Name : {{providerName}}</li>
+            <li>Mobile No : <a href='tel:{{providerMoNo}}'>{{providerMoNo}}</a></li>
+        </ul>
+        <h2>Product's Details</h2>
+        <ul>
+            <li>Product Name : {{productName}}</li>
+            <li>product Rent : {{productRent}}</li>
+        </ul>
+    </p>
+
+    <div class="head">
+        <h1><a href="https://rentyug.com">RentYug</a></h1>
+    </div>
+    <h4>
+        Thank you <br>
+        Sumit
+    </h4>
+    <h4></h4>
+    
+</body>
+</html>

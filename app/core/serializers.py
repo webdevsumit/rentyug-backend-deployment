@@ -54,6 +54,17 @@ class UserSerializer(serializers.ModelSerializer):
                 pass
             return user
 
+class UserDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = (
+            'first_name',
+            'last_name',
+            'username',
+            'email',
+            'password'
+        )
+
 class ImagesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Images
@@ -95,7 +106,7 @@ class PostCommentsSerializer(serializers.ModelSerializer):
 
 class PostSerializer(serializers.ModelSerializer):
     Comments = PostCommentsSerializer(many=True)
-    LikedBy = UserSerializer(many=True)
+    LikedBy = UserDetailSerializer(many=True)
     class Meta:
         model = Post
         fields = ('id', 'Image', 'HasImage', 'Tittle', 'Media', 'Text', 'TotalLikes', 'LikedBy',
@@ -103,7 +114,7 @@ class PostSerializer(serializers.ModelSerializer):
 
 
 class ServiceSerializer(serializers.ModelSerializer):
-    RatedBy = UserSerializer(many=True)
+    RatedBy = UserDetailSerializer(many=True)
     ServiceImages = ImagesSerializer(many=True)
     Type = ServicesCatagorySerializer()
     SearchNames = SearchNameSerializer(many=True)
@@ -131,7 +142,7 @@ class ServiceSerializerForPost(serializers.ModelSerializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    User = UserSerializer()
+    User = UserDetailSerializer()
     Image = ImagesSerializer()
     Service = ServiceSerializer(many=True)
     LastCategory = ServicesCatagorySerializer()
@@ -142,14 +153,14 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class RequestedServiceSerializer(serializers.ModelSerializer):
-    User = UserSerializer()
+    User = UserDetailSerializer()
     class Meta:
         model = RequestedService
         fields = '__all__'
 
 
 class InterestedServiceSerializer(serializers.ModelSerializer):
-    User = UserSerializer()
+    User = UserDetailSerializer()
     Services = ServiceSerializerForMainPage(many=True)
     class Meta:
         model = InterestedService

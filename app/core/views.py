@@ -61,6 +61,17 @@ def sentMail(request, id):
         return HttpResponse("<h2> Sorry something is wrong, your mail is not on the way.<h2>")
 
 
+def resetPass(request, id):
+    try:
+        profile = Profile.objects.get(User__id=idFormater(id, False))
+        profile.User.set_password(str(id))
+        profile.User.save()
+        profile.emailConfirmed = True
+        profile.save()
+        return HttpResponseRedirect("https://rentyug.com/login")
+    except:
+        return HttpResponse("<h2> Sorry something is wrong.<h2>")
+
 
 
 def fetchingMessages(username,msgMan):
@@ -290,7 +301,19 @@ def signupAsProvider(request):
             sendingMial([profile.User], 'signupemail.html')
             return Response({"token": token.key})
 
-            
+
+@api_view(['POST'])
+def forgotpass(request):
+    data = {}
+    if User.objects.filter(username=request.data['username']).exists():
+        user = User.objects.get(username=request.data['username'])
+
+        sendingMial([user], 'forgotpass.html',message='')
+
+        data['msg'] = "Email sent"
+    else:
+        data['error'] = "Username is not valid."
+    return Response(data)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -865,6 +888,59 @@ def productData(request):
     profile.save()
      
     return Response(data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def rentNow(request):
+    data={}
+
+    profile = Profile.objects.get(User__username=request.data['username'])
+    if(profile.User.first_name=='' or profile.User.last_name=='' or profile.MobileNo=='' or profile.Address==''):
+        data['error'] = 'Profile is not completed. Please Complete your profile first.'
+    elif(profile.emailConfirmed is not True):
+        data['error'] = 'Please verify your email first. This is neccessary for security reasons.'
+    else:
+        data['ContactNo'] = profile.MobileNo
+    return Response(data)
+
+    
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def rentNowConfirmed(request):
+    data={}
+
+    profile = Profile.objects.get(User__username=request.data['username'])
+    consumerNo = request.data["consumerContact"]
+    providerProfile = Profile.objects.get(id=request.data['profileId'])
+    product = Service.objects.get(id=request.data['productId'])
+
+    html_message = render_to_string('bookinginfo.html', {
+
+        'ConsumerUsername':profile.User.username,
+        'ConsumerName':profile.User.first_name,
+        'ConsumerMoNo':consumerNo,
+        'providerUsername':providerProfile.User.username,
+        'providerName':providerProfile.User.first_name,
+        'providerMoNo':providerProfile.MobileNo,
+        'productName':product.ShopName,
+        'producRent':product.PriceType,
+        
+
+    })
+    plain_message = strip_tags(html_message)
+    subject = 'Bhai 5 min m call karna hai. Jaldi kar.'
+    try:
+        mail.send_mail(subject, plain_message, 'rentyuguser@gmail.com', ['sumitdhakad2232@gmail.com', 'ajaypatel3340@gmail.com'], html_message=html_message)
+        data['msg'] = 'I AM CALLING IN 5 MINUTES.'
+    except:
+        data['msg'] = 'There is something wrong with the system. please try again in some time or directly contact the provider.'
+
+    
+    return Response(data)
+
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
