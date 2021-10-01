@@ -1,5 +1,3 @@
-from django.shortcuts import render, redirect
-from rest_framework import generics
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
@@ -7,50 +5,62 @@ from django.contrib.auth.models import User
 from django.contrib.auth import (authenticate,login,logout)
 from django.db.models import Q
 import datetime
+from datetime import timezone
+from django.http import HttpResponse
+from django.http import HttpResponseRedirect
+
+from django.core import mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
 
+from .models import *
+from .serializers import *
+
+import re
+
+EMAIL_REGEX = r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)"
 
 
-from .models import (
-    Images,
-    ServicesCatagory,
-    SearchName,
-    PostCommentsReplies,
-    PostComments,
-    Post,
-    Service,
-    Feedbacks,
-    Profile,
-    ServiceFeedback,
-    Plans,
-    FrontPageFeedback,
-    Messages,
-    MessageBox,
-    FAQ,
-    InterestedService,
-    TotalHits,
-    TotalHitsPerPersonPerDay,
-    LastSearchedTag,
-    RequestedService,
-)
+def idFormater(data, idToComplex=True):
+    import datetime
+    x = datetime.datetime.now()
+    formater = 9713751690*x.year*x.month*x.day
+    
+    if idToComplex:
+        formatedID = formater*int(data)
+        return formatedID
+    else:
+        return int(int(data)/formater)
 
-from .serializers import (
-    UserSerializer,
-    ServicesCatagorySerializer,
-    ServiceSerializer,
-    ServiceSerializerForMainPage,
-    ServiceSerializerForPost,
-    ProfileSerializer,
-    PlansSerializer,
-    FrontPageFeedbackSerializer,
-    MessagesBoxSerializer,
-    MessagesSerializer,
-    FAQSerializer,
-    InterestedServiceSerializer,
-    RequestedServiceSerializer,
-)
+
+def sendingMial(users, tempFile, message=''):
+    subject = 'RenYug Care'
+    for user in users:
+        html_message = render_to_string(tempFile, {'first_name': user.username, 'id': idFormater(user.id), 'message':message})
+        plain_message = strip_tags(html_message)
+
+        try:
+            mail.send_mail(subject, plain_message, 'rentyuguser@gmail.com', [user.email], html_message=html_message)
+        except:
+            print("error in sending email.")
+
+    
+
+def sentMail(request, id):
+    
+    try:
+        profile = Profile.objects.get(User__id=idFormater(id, False))
+        profile.emailConfirmed = True
+        profile.save()
+        sendingMial([profile.User], 'confirmemail.html')
+        return HttpResponseRedirect("https://rentyug.com")
+    except:
+        return HttpResponse("<h2> Sorry something is wrong, your mail is not on the way.<h2>")
+
+
 
 
 def fetchingMessages(username,msgMan):
@@ -117,6 +127,12 @@ def mainPageData(request):
                     Service.objects.filter(lat__range = (profile.lat-dist_range,profile.lat+dist_range)).filter(lng__range = (profile.lng-dist_range,profile.lng+dist_range)),
                     many=True, context={'request':request}
                 ).data
+
+
+                unreadMsg = MessageBox.objects.filter(Username=request.data['user'], UnreadMessages=True)
+                if unreadMsg.exists():
+                    data['UnreadMsg'] = unreadMsg.count()
+
                 
             
 
@@ -173,6 +189,7 @@ def messages(request):
         updataData.UnreadMessages=False
         updataData.save()
 
+
         data = fetchingMessages(request.data['Username'],request.data['MessagePartner'])
         
         return Response(MessagesSerializer(data, many=True, context={'request':request}).data)
@@ -193,6 +210,20 @@ def addMessages(request):
         MessagePartner=request.data['SendBy'])
         updataData.UnreadMessages=True
         updataData.save()
+
+        profile = Profile.objects.get(User__username = request.data['RecievedBy'])
+        Recievers_last_messages = Messages.objects.filter(SendBy = request.data['RecievedBy'], RecievedBy = request.data['SendBy'])
+        if Recievers_last_messages.exists():
+            last_message_date = Recievers_last_messages.last().DateTime
+            if(datetime.datetime.now(timezone.utc)-last_message_date).days>=1:
+
+                sendingMial([profile.User], 'newmsgemail.html',
+                    message="You have Unread messages from "+str(request.data['SendBy'])+"."
+                )
+        else:
+            sendingMial([profile.User], 'newmsgemail.html',
+                    message="You got messages first time from "+str(request.data['SendBy'])+"."
+                )
         
         return Response(MessagesSerializer(data, many=True, context={'request':request}).data)
 
@@ -213,6 +244,11 @@ def addNewSmsBox(request):
         msg2.UnreadMessages=True
         msg2.save()
 
+        profile = Profile.objects.get(User__username = request.data['provider'])
+        sendingMial([profile.User], 'newmsgemail.html',
+            message=str(request.data['user'])+"Is trying to reach you for your product. Contact as soom as possible to get the deal."
+        )
+
         return Response({'msg':'done'})
 
 
@@ -222,7 +258,14 @@ def signupAsProvider(request):
         
         user_exist = User.objects.filter(username=request.data['username']).exists()
         if user_exist:
-            return Response({'error':'Username already exist.'})
+            return Response({'error':'USERNAME already exists.'})
+        email = request.data['email']
+        user_email_exist = User.objects.filter(email=email).exists()
+        if user_email_exist:
+            return Response({'error':'This EMAIL already exists.'})
+
+        if email and not re.match(EMAIL_REGEX, email):
+            return Response({'error':'EMAIL ID is not valid.'})
 
         user_data = UserSerializer(data=request.data)
         if user_data.is_valid(raise_exception=True):
@@ -231,19 +274,10 @@ def signupAsProvider(request):
             user.set_password(request.data['password'])
             user.save()
 
-            img_ = request.FILES.get('image')
-            
-            Profile_Image=Images.objects.create(Image=img_)
+            Profile_Image=Images.objects.create()
             Profile_Image.save()
-            
 
-            profile = Profile.objects.create(User=user,
-                                            Address=request.data['Address'],
-                                            MobileNo=request.data['MobileNo'],
-                                            Image=Profile_Image,
-                                            lat=request.data['lat'],
-                                            lng=request.data['lng']
-                                            )
+            profile = Profile.objects.create(User=user,Image=Profile_Image)
             profile.save()
 
             user_ = authenticate(user_data.validated_data)
@@ -253,6 +287,7 @@ def signupAsProvider(request):
                 login(request,user_)
             
             token, _  = Token.objects.get_or_create(user_id=user.id)
+            sendingMial([profile.User], 'signupemail.html')
             return Response({"token": token.key})
 
             
@@ -345,18 +380,36 @@ def setLastname(request):
 @permission_classes([IsAuthenticated])
 def setEmail(request):
     if request.method=='POST':
+        data={}
+        email = request.data['email']
+        if User.objects.filter(email=email).exists():
+            data['error'] = "This email already exists. Use another one."
+            return Response(data)
+        if email and not re.match(EMAIL_REGEX, email):
+            return Response({'error':'EMAIL ID is not valid.'})
         user = User.objects.get(username=request.data['username'])
-
 
         user.email = request.data['email']
         user.save()
 
-
-        data={}
         
         profile = Profile.objects.get(User__username=request.data['username'])
+        profile.emailConfirmed = False
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
-                    
+        profile.save()
+        sendingMial([profile.User], 'signupemail.html')
+        return Response(data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def configEmail(request):
+    if request.method=='POST':
+        data={}
+
+        profile = Profile.objects.get(User__username=request.data['username'])
+        profile.save()
+        sendingMial([profile.User], 'signupemail.html')
+        data['message'] = "Email sent for verification please verify."
         return Response(data)
 
 
@@ -595,6 +648,21 @@ def setRentalStatus(request):
                 
         profile = Profile.objects.get(User__username=request.data['username'])
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
+                            
+        return Response(data)
+        
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def setGetNotification(request):
+    if request.method=='POST':
+        data={}
+                
+        profile = Profile.objects.get(User__username=request.data['username'])
+        profile.emailNotification = request.data['getNotification']
+        profile.save()
+        data['profile'] = ProfileSerializer(profile, context={'request':request}).data
+        print(request.data['getNotification'])
                             
         return Response(data)
         

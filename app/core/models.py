@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 
 class Images(models.Model):
-    Image = models.ImageField(upload_to='images')
+    Image = models.ImageField(upload_to='images', default='images/rentyug.png')
 
 
 class ServicesCatagory(models.Model):
@@ -87,9 +87,10 @@ class Service(models.Model):
     VStatus = models.BooleanField(default=False)
     RentalStatus = models.BooleanField(default=True)
     NoOfItems = models.IntegerField(default=1)
-    Address = models.TextField(default='0')
-    lat = models.FloatField(default=0)
-    lng = models.FloatField(default=0)
+    noOfTimeRented = models.IntegerField(default=0)
+    Address = models.TextField(default='Bhopal')
+    lat = models.FloatField(default=23.25)
+    lng = models.FloatField(default=77.41)
 
     Posts = models.ManyToManyField(Post, blank=True)
     Activated = models.BooleanField(default=True)
@@ -107,10 +108,16 @@ class LastSearchedTag(models.Model):
 class Profile(models.Model):
     User = models.OneToOneField(User, on_delete=models.CASCADE)
     Image = models.OneToOneField(Images, on_delete=models.CASCADE,blank=True, null=True)
-    Address = models.TextField()
-    lat = models.FloatField(default=0)
-    lng = models.FloatField(default=0)
-    MobileNo = models.CharField(max_length=20)
+    Address = models.TextField(default='')
+    lat = models.FloatField(default=23.25)
+    lng = models.FloatField(default=77.41)
+    MobileNo = models.CharField(max_length=20,default='')
+
+    emailConfirmed = models.BooleanField(default=False)
+    emailNotification = models.BooleanField(default=True, null=True)
+
+    noOfTimeTakeItems = models.IntegerField(default=0)
+    noOfTimeGiveItems = models.IntegerField(default=0)
 
     LastSearchedTags = models.ManyToManyField(LastSearchedTag, blank=True)
     Rating = models.FloatField(default=5)

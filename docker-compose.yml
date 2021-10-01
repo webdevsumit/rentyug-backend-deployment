@@ -21,7 +21,7 @@ services:
       - ALLOWED_HOSTS=127.0.0.1
       - ALLOWED_CORS=http://127.0.0.1:3000,http://127.0.0.1,http://127.0.0.1:8000,http://localhost:3000,http://localhost
       - DB_HOST=db
-      - DB_NAME=rentyug-live
+      - DB_NAME=rentyug
       - DB_USER=rootuser
       - DB_PASS=db-rentyug
       - AWS_ACCESS_KEY_ID=AKIAW23F7TJBJ5ELCMOE
@@ -37,6 +37,6 @@ services:
   db:
     image: postgres:13-alpine
     environment:
-      - POSTGRES_DB=rentyug-live
+      - POSTGRES_DB=rentyug
       - POSTGRES_USER=rootuser
       - POSTGRES_PASSWORD=db-rentyug

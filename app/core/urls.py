@@ -53,6 +53,9 @@ from .views import (mainPageData,
                     requestedServices,
                     completedRequestService,
                     addingServiceRequest,
+                    sentMail,
+                    configEmail,
+                    setGetNotification,
                     )
 
 app_name = 'main'
@@ -83,6 +86,7 @@ urlpatterns = [
     path('setOpenTime/',setOpenTime,name='setOpenTime'),
     path('setCloseTime/',setCloseTime,name='setCloseTime'),
     path('setRentalStatus/',setRentalStatus,name='setRentalStatus'),
+    path('setGetNotification/',setGetNotification,name='setGetNotification'),
     path('setNoOfItems/',setNoOfItems,name='setNoOfItems'),
     path('setPriceType/',setPriceType,name='setPriceType'),
     path('updateServiceAddr/',updateServiceAddr,name='updateServiceAddr'),
@@ -112,6 +116,8 @@ urlpatterns = [
     path('requestedServices/',requestedServices,name='requestedServices'),
     path('completedRequestService/',completedRequestService,name='completedRequestService'),
     path('addingServiceRequest/',addingServiceRequest,name='addingServiceRequest'),
+    path('confirm-email/<int:id>/',sentMail,name='sentMail'),
+    path('configEmail/',configEmail,name='configEmail'),
     
 ]
 
