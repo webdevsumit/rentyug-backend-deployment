@@ -36,7 +36,7 @@ def idFormater(data, idToComplex=True):
         return int(int(data)/formater)
 
 
-def sendingMial(users, tempFile, message=''):
+def sendingMail(users, tempFile, message=''):
     subject = 'RenYug Care'
     for user in users:
         html_message = render_to_string(tempFile, {'first_name': user.username, 'id': idFormater(user.id), 'message':message})
@@ -55,7 +55,7 @@ def sentMail(request, id):
         profile = Profile.objects.get(User__id=idFormater(id, False))
         profile.emailConfirmed = True
         profile.save()
-        sendingMial([profile.User], 'confirmemail.html')
+        sendingMail([profile.User], 'confirmemail.html')
         return HttpResponseRedirect("https://rentyug.com")
     except:
         return HttpResponse("<h2> Sorry something is wrong, your mail is not on the way.<h2>")
@@ -159,18 +159,34 @@ def mainPageData(request):
             web_hits_pppd = TotalHitsPerPersonPerDay.objects.get_or_create(Username=request.data['user'], Date=datetime.date.today())[0]
             web_hits_pppd.Hits = web_hits_pppd.Hits+1
             web_hits_pppd.save()
-
-            
-
-
         else:
             data['InterestedService']={}
             data['NearbyServices']={}
-
-
-        
-        
         return Response(data)
+
+@api_view(['GET'])
+def getCategories(request):
+    if request.method=='GET':
+    
+        data = {}
+        data['ServiceCatagories']=ServicesCatagorySerializer(ServicesCatagory.objects.all(),
+        many=True, context={'request':request}).data
+
+        return Response(data)
+
+
+@api_view(['GET'])
+def getCategoryData(request, id):
+    if request.method=='GET':
+    
+        data = {}
+        data['categoryName'] = ServicesCatagory.objects.get(id=id).Name
+        data['data']=ServiceSerializer(Service.objects.filter(Type__id=id),
+        many=True, context={'request':request}).data
+
+        return Response(data)
+
+
 
 @api_view(['GET'])
 def FAQData(request):
@@ -223,17 +239,19 @@ def addMessages(request):
         updataData.save()
 
         profile = Profile.objects.get(User__username = request.data['RecievedBy'])
-        Recievers_last_messages = Messages.objects.filter(SendBy = request.data['RecievedBy'], RecievedBy = request.data['SendBy'])
-        if Recievers_last_messages.exists():
-            last_message_date = Recievers_last_messages.last().DateTime
-            if(datetime.datetime.now(timezone.utc)-last_message_date).days>=1:
 
-                sendingMial([profile.User], 'newmsgemail.html',
-                    message="You have Unread messages from "+str(request.data['SendBy'])+"."
-                )
-        else:
-            sendingMial([profile.User], 'newmsgemail.html',
-                    message="You got messages first time from "+str(request.data['SendBy'])+"."
+        if profile.emailConfirmed and profile.emailNotification:
+            Recievers_last_messages = Messages.objects.filter(SendBy = request.data['RecievedBy'], RecievedBy = request.data['SendBy'])
+            if Recievers_last_messages.exists():
+                last_message_date = Recievers_last_messages.last().DateTime
+                if(datetime.datetime.now(timezone.utc)-last_message_date).days>=1:
+
+                    sendingMail([profile.User], 'newmsgemail.html',
+                        message="You have Unread messages from "+str(request.data['SendBy'])+"."
+                    )
+            else:
+                sendingMail([profile.User], 'newmsgemail.html',
+                        message="You got messages first time from "+str(request.data['SendBy'])+"."
                 )
         
         return Response(MessagesSerializer(data, many=True, context={'request':request}).data)
@@ -256,9 +274,10 @@ def addNewSmsBox(request):
         msg2.save()
 
         profile = Profile.objects.get(User__username = request.data['provider'])
-        sendingMial([profile.User], 'newmsgemail.html',
-            message=str(request.data['user'])+"Is trying to reach you for your product. Contact as soom as possible to get the deal."
-        )
+        if profile.emailConfirmed and profile.emailNotification:
+            sendingMail([profile.User], 'newmsgemail.html',
+                message=str(request.data['user'])+"Is trying to reach you for your product. Contact as soom as possible to get the deal."
+            )
 
         return Response({'msg':'done'})
 
@@ -277,6 +296,8 @@ def signupAsProvider(request):
 
         if email and not re.match(EMAIL_REGEX, email):
             return Response({'error':'EMAIL ID is not valid.'})
+
+        
 
         user_data = UserSerializer(data=request.data)
         if user_data.is_valid(raise_exception=True):
@@ -298,8 +319,11 @@ def signupAsProvider(request):
                 login(request,user_)
             
             token, _  = Token.objects.get_or_create(user_id=user.id)
-            sendingMial([profile.User], 'signupemail.html')
-            return Response({"token": token.key})
+            if sendingMail([profile.User], 'signupemail.html'):
+                return Response({"token": token.key})
+            else:
+                user_.delete()
+                return Response({'error':'This email is corrupt or something is not good in our system.'})
 
 
 @api_view(['POST'])
@@ -308,7 +332,7 @@ def forgotpass(request):
     if User.objects.filter(username=request.data['username']).exists():
         user = User.objects.get(username=request.data['username'])
 
-        sendingMial([user], 'forgotpass.html',message='')
+        sendingMail([user], 'forgotpass.html',message='')
 
         data['msg'] = "Email sent"
     else:
@@ -420,7 +444,7 @@ def setEmail(request):
         profile.emailConfirmed = False
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
         profile.save()
-        sendingMial([profile.User], 'signupemail.html')
+        sendingMail([profile.User], 'signupemail.html')
         return Response(data)
 
 @api_view(['POST'])
@@ -431,7 +455,7 @@ def configEmail(request):
 
         profile = Profile.objects.get(User__username=request.data['username'])
         profile.save()
-        sendingMial([profile.User], 'signupemail.html')
+        sendingMail([profile.User], 'signupemail.html')
         data['message'] = "Email sent for verification please verify."
         return Response(data)
 
@@ -805,7 +829,9 @@ def addSearchName(request):
 @permission_classes([IsAuthenticated])
 def addNewService(request):
     if request.method=='POST':
-    
+
+
+        profile = Profile.objects.get(User__username=request.data['username'])
         catagory = ServicesCatagory.objects.get(id=request.data['catagoryId'])
         
         service = Service.objects.create(
@@ -814,13 +840,16 @@ def addNewService(request):
                 Type=catagory,
                 OpenTime=request.data['OpenTime'],
                 closeTime=request.data['CloseTime'],
-                PriceType=request.data['PriceType']
+                PriceType=request.data['PriceType'],
+                Address=profile.Address,
+                lat=profile.lat,
+                lng=profile.lng,
         )
         service.save()
 
         data={}
                 
-        profile = Profile.objects.get(User__username=request.data['username'])
+        
         profile.Service.add(service)
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
         profile.save()
@@ -833,7 +862,7 @@ def search(request):
 
     s_data = {}
     
-    s_data['data'] = ServiceSerializer(Service.objects.filter(Q(SearchNames__Name=searchName) | Q(ShopName__icontains=searchName) | Q(Description__icontains=searchName)), many=True, 
+    s_data['data'] = ServiceSerializer(Service.objects.filter(Q(SearchNames__Name=searchName) | Q(ShopName__icontains=searchName) | Q(Description__icontains=searchName)).distinct(), many=True, 
     context={'request':request}).data
 
     if request.data['Username'] is not None:
@@ -926,14 +955,13 @@ def rentNowConfirmed(request):
         'providerMoNo':providerProfile.MobileNo,
         'productName':product.ShopName,
         'producRent':product.PriceType,
-        
 
     })
     plain_message = strip_tags(html_message)
     subject = 'Bhai 5 min m call karna hai. Jaldi kar.'
     try:
         mail.send_mail(subject, plain_message, 'rentyuguser@gmail.com', ['sumitdhakad2232@gmail.com', 'ajaypatel3340@gmail.com'], html_message=html_message)
-        data['msg'] = 'I AM CALLING IN 5 MINUTES.'
+        data['msg'] = 'WE ARE CALLING IN 5 MINUTES.'
     except:
         data['msg'] = 'There is something wrong with the system. please try again in some time or directly contact the provider.'
 
@@ -950,7 +978,7 @@ def giveRating(request):
         service_exist = Service.objects.filter(RatedBy__username=request.data['user']).exists()
 
         if service_exist:
-            return Response({'msg':'You have already rated that.'})
+            return Response({'msg':'You have rated that.'})
 
         service = Service.objects.get(id=request.data['productId'])
         user = User.objects.get(username=request.data['user'])

@@ -8,6 +8,7 @@ urlpatterns = [
     path('api-token-auth/', obtain_auth_token, name='api_token_auth'),
     path('forgotpass/', forgotpass, name='forgotpass'),
     path('mainPageData/', mainPageData,name='main_page_data'),
+    path('getCategories/', getCategories,name='getCategories'),
     path('messageBox/', messageBox, name='messageBox'),
     path('messages/', messages, name='messages'),
     path('addMessages/', addMessages, name='addMessages'),
@@ -66,6 +67,7 @@ urlpatterns = [
     path('configEmail/',configEmail,name='configEmail'),
     path('rentnow/',rentNow,name='rentNow'),
     path('rentnowconfirmed/',rentNowConfirmed,name='rentNowConfirmed'),
+    path('category/<int:id>',getCategoryData,name='getCategoryData'),
 ]
 
 
