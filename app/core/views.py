@@ -44,8 +44,10 @@ def sendingMail(users, tempFile, message=''):
 
         try:
             mail.send_mail(subject, plain_message, 'rentyuguser@gmail.com', [user.email], html_message=html_message)
+            return True
         except:
             print("error in sending email.")
+            return False
 
     
 
@@ -233,10 +235,14 @@ def addMessages(request):
         
         data = fetchingMessages(request.data['SendBy'],request.data['RecievedBy'])
 
-        updataData = MessageBox.objects.get(Username=request.data['RecievedBy'],
-        MessagePartner=request.data['SendBy'])
+        updataData = MessageBox.objects.get_or_create(Username=request.data['RecievedBy'],
+        MessagePartner=request.data['SendBy'])[0]
         updataData.UnreadMessages=True
         updataData.save()
+
+        updataData2 = MessageBox.objects.get_or_create(Username=request.data['SendBy'],
+        MessagePartner=request.data['RecievedBy'])[0]
+        updataData2.save()
 
         profile = Profile.objects.get(User__username = request.data['RecievedBy'])
 
@@ -253,6 +259,8 @@ def addMessages(request):
                 sendingMail([profile.User], 'newmsgemail.html',
                         message="You got messages first time from "+str(request.data['SendBy'])+"."
                 )
+        if profile.emailNotification:
+            sendingMail([profile.User], 'signupemail.html')
         
         return Response(MessagesSerializer(data, many=True, context={'request':request}).data)
 
@@ -434,18 +442,24 @@ def setEmail(request):
             return Response(data)
         if email and not re.match(EMAIL_REGEX, email):
             return Response({'error':'EMAIL ID is not valid.'})
-        user = User.objects.get(username=request.data['username'])
 
-        user.email = request.data['email']
-        user.save()
 
         
         profile = Profile.objects.get(User__username=request.data['username'])
-        profile.emailConfirmed = False
-        data['profile'] = ProfileSerializer(profile, context={'request':request}).data
-        profile.save()
-        sendingMail([profile.User], 'signupemail.html')
-        return Response(data)
+        user = profile.User
+        user.email = request.data['email']
+
+        if sendingMail([user], 'signupemail.html'):
+            user.save()
+            
+            profile.emailConfirmed = False
+            data['profile'] = ProfileSerializer(profile, context={'request':request}).data
+            profile.save()
+        
+            return Response(data)
+        else:
+            return Response({'error':'This email is corrupt or something is not good in our system.'})
+        
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
