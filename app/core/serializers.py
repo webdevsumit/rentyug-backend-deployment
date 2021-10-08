@@ -62,7 +62,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'last_name',
             'username',
             'email',
-            'password'
+            'password',
+            'is_superuser'
         )
 
 class ImagesSerializer(serializers.ModelSerializer):
@@ -207,6 +208,7 @@ class TotalHitsPerPersonPerDaySerializer(serializers.ModelSerializer):
     class Meta:
         model = TotalHitsPerPersonPerDay
         fields = '__all__'
+
 
 
 

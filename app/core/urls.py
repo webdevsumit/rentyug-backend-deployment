@@ -6,6 +6,7 @@ app_name = 'main'
 
 urlpatterns = [
     path('api-token-auth/', obtain_auth_token, name='api_token_auth'),
+    path('login/', customLogin, name='customLogin'),
     path('forgotpass/', forgotpass, name='forgotpass'),
     path('mainPageData/', mainPageData,name='main_page_data'),
     path('getCategories/', getCategories,name='getCategories'),
@@ -13,7 +14,7 @@ urlpatterns = [
     path('messages/', messages, name='messages'),
     path('addMessages/', addMessages, name='addMessages'),
     path('signupAsProvider/', signupAsProvider,name='signupAsProvider'),
-    path('logout/', logout, name='logout'),
+    path('logout/', logingout, name='logout'),
     path('addFeedback/', addFeedback, name='addFeedback'),
     path('account/', account, name='account'),
     path('setFirstname/',setFirstname, name='setFirstname'),
@@ -24,7 +25,7 @@ urlpatterns = [
     path('setLoc/',setLoc, name='setLoc'),
     path('setMyNo/',setMyNo, name='setMyNo'),
     path('setShopName/',setShopName, name='setShopName'),
-    path('ShopCatagories/',ShopCatagories, name='ShopCatagories'),
+    path('ShopCatagories/',getCategories, name='getCategories'),
     path('updateShopCatagory/',updateShopCatagory, name='updateShopCatagory'),
     path('updateMainImage/',updateMainImage, name='updateMainImage'),
     path('updateImage/',updateImage, name='updateImage'),
@@ -49,6 +50,7 @@ urlpatterns = [
     path('removeItem/',removeItem,name='removeItem'),
     path('FAQData/',FAQData,name='FAQData'),
     path('posts/',posts,name='posts'),
+    path('morePosts/',morePosts,name='morePosts'),
     path('addPostComment/',addPostComment,name='addPostComment'),
     path('removePostComment/',removePostComment,name='removePostComment'),
     path('addPostCommentReply/',addPostCommentReply,name='addPostCommentReply'),
@@ -68,6 +70,8 @@ urlpatterns = [
     path('rentnow/',rentNow,name='rentNow'),
     path('rentnowconfirmed/',rentNowConfirmed,name='rentNowConfirmed'),
     path('category/<int:id>',getCategoryData,name='getCategoryData'),
+    path('sendVerifyEmail/',sendVerifyEmail,name='sendVerifyEmail'),
+    path('sendGetProductEmail/',sendGetProductEmail,name='sendGetProductEmail'),
 ]
 
 

@@ -49,10 +49,51 @@ def sendingMail(users, tempFile, message=''):
             print("error in sending email.")
             return False
 
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def sendVerifyEmail(request):
+    user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+    failed = 0
+    success = 0
+    if user.is_superuser:
+        subject = 'RenYug Email Verification'
+        for user in Profile.objects.filter(emailConfirmed=False):
+            html_message = render_to_string('verifyEmail.html', {'first_name': user.User.username, 'id': idFormater(user.User.id)})
+            plain_message = strip_tags(html_message)
+            try:
+                mail.send_mail(subject, plain_message, 'rentyuguser@gmail.com', [user.User.email], html_message=html_message)
+                success += 1
+            except:
+                failed += 1
+        return Response({'msg':"Number of emails successfully sent : "+str(success)+" and Number of emails not sent : "+str(failed)})
+    else:
+        return Response({'error':"you are not a superuser."})
+    
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def sendGetProductEmail(request):
+    user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+    failed = 0
+    success = 0
+    if user.is_superuser:
+        subject = 'RenYug Management Team'
+        for user in Profile.objects.filter(emailNotification=True):
+            html_message = render_to_string('getProductEmail.html', {'first_name': user.User.username})
+            plain_message = strip_tags(html_message)
+            try:
+                mail.send_mail(subject, plain_message, 'rentyuguser@gmail.com', [user.User.email], html_message=html_message)
+                success += 1
+            except:
+                failed += 1
+        return Response({'msg':"Number of emails successfully sent : "+str(success)+" and Number of emails not sent : "+str(failed)})
+    else:
+        return Response({'error':"you are not a superuser."})
+    
     
 
 def sentMail(request, id):
-    
     try:
         profile = Profile.objects.get(User__id=idFormater(id, False))
         profile.emailConfirmed = True
@@ -119,6 +160,7 @@ def mainPageData(request):
             web_hits.save()
         else:
             web_hits = TotalHits.objects.create(Hits=1)
+
         
         data = {}
         data['ServiceCatagories']=ServicesCatagorySerializer(ServicesCatagory.objects.all(),
@@ -141,20 +183,11 @@ def mainPageData(request):
                     many=True, context={'request':request}
                 ).data
 
-
-                unreadMsg = MessageBox.objects.filter(Username=request.data['user'], UnreadMessages=True)
-                if unreadMsg.exists():
-                    data['UnreadMsg'] = unreadMsg.count()
-
-                
-            
-
+                data['UnreadMsg'] = MessageBox.objects.filter(Username=request.data['user'], UnreadMessages=True).count()
 
             if InterestedService.objects.filter(User__username=request.data['user']).exists():
-                
                 data['InterestedService']=InterestedServiceSerializer(InterestedService.objects.get(User__username=request.data['user']),
                         context={'request':request}).data
-
             else:
                 data['InterestedService']={}
 
@@ -204,7 +237,8 @@ def FAQData(request):
 @permission_classes([IsAuthenticated])
 def messageBox(request):
     if request.method=='POST':
-        data = MessageBox.objects.filter(Username = request.data['Username'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        data = MessageBox.objects.filter(Username = user.username)
         return Response(MessagesBoxSerializer(data, many=True, context={'request':request}).data)
 
 
@@ -212,16 +246,20 @@ def messageBox(request):
 @permission_classes([IsAuthenticated])
 def messages(request):
     if request.method=='POST':
+
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
         
-        updataData = MessageBox.objects.get(Username=request.data['Username'],
+        updataData = MessageBox.objects.get(Username=user.username,
         MessagePartner=request.data['MessagePartner'])
         updataData.UnreadMessages=False
         updataData.save()
 
+        data = {}
 
-        data = fetchingMessages(request.data['Username'],request.data['MessagePartner'])
+        data['messages'] = MessagesSerializer(fetchingMessages(user.username,request.data['MessagePartner']), many=True, context={'request':request}).data
+        data['unreadMsg'] = MessageBox.objects.filter(Username=user.username, UnreadMessages=True).count()
         
-        return Response(MessagesSerializer(data, many=True, context={'request':request}).data)
+        return Response(data)
 
 
 @api_view(['POST'])
@@ -235,29 +273,31 @@ def addMessages(request):
         
         data = fetchingMessages(request.data['SendBy'],request.data['RecievedBy'])
 
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+
         updataData = MessageBox.objects.get_or_create(Username=request.data['RecievedBy'],
         MessagePartner=request.data['SendBy'])[0]
         updataData.UnreadMessages=True
         updataData.save()
 
-        updataData2 = MessageBox.objects.get_or_create(Username=request.data['SendBy'],
+        updataData2 = MessageBox.objects.get_or_create(user.username,
         MessagePartner=request.data['RecievedBy'])[0]
         updataData2.save()
 
         profile = Profile.objects.get(User__username = request.data['RecievedBy'])
 
         if profile.emailConfirmed and profile.emailNotification:
-            Recievers_last_messages = Messages.objects.filter(SendBy = request.data['RecievedBy'], RecievedBy = request.data['SendBy'])
+            Recievers_last_messages = Messages.objects.filter(SendBy = request.data['RecievedBy'], RecievedBy = user.username)
             if Recievers_last_messages.exists():
                 last_message_date = Recievers_last_messages.last().DateTime
                 if(datetime.datetime.now(timezone.utc)-last_message_date).days>=1:
 
                     sendingMail([profile.User], 'newmsgemail.html',
-                        message="You have Unread messages from "+str(request.data['SendBy'])+"."
+                        message="You have Unread messages from "+str(user.username)+"."
                     )
             else:
                 sendingMail([profile.User], 'newmsgemail.html',
-                        message="You got messages first time from "+str(request.data['SendBy'])+"."
+                        message="You got messages first time from "+str(user.username)+"."
                 )
         if profile.emailNotification:
             sendingMail([profile.User], 'signupemail.html')
@@ -270,8 +310,8 @@ def addMessages(request):
 @permission_classes([IsAuthenticated])
 def addNewSmsBox(request):
     if request.method=='POST':
-    
-        msg,created = MessageBox.objects.get_or_create(Username=request.data['user'],
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        msg,created = MessageBox.objects.get_or_create(Username=user.username,
         MessagePartner=request.data['provider'])
         msg.UnreadMessages=False
         msg.save()
@@ -284,10 +324,32 @@ def addNewSmsBox(request):
         profile = Profile.objects.get(User__username = request.data['provider'])
         if profile.emailConfirmed and profile.emailNotification:
             sendingMail([profile.User], 'newmsgemail.html',
-                message=str(request.data['user'])+"Is trying to reach you for your product. Contact as soom as possible to get the deal."
+                message=str(user.username)+"Is trying to reach you for your product. Contact as soom as possible to get the deal."
             )
 
         return Response({'msg':'done'})
+
+
+@api_view(['POST'])
+def customLogin(request):
+    email_or_username = request.data['username']
+    if email_or_username and re.match(EMAIL_REGEX, email_or_username):
+        users = User.objects.filter(email=email_or_username)
+        if not users.exists():
+            return Response({'error':'User with this email not found.'})
+    else:
+        users = User.objects.filter(username=email_or_username)
+        if not users.exists():
+            return Response({'error':'User with this username not found.'})
+    user = users[0]
+    if not user.check_password(request.data['password']):
+        return Response({'error':'Password is incorrect.'})
+    
+    data = {'username':user.username}
+    token, _  = Token.objects.get_or_create(user_id=user.id)
+    data['token'] = token.key
+    return Response(data)
+    
 
 
 @api_view(['POST'])
@@ -337,19 +399,20 @@ def signupAsProvider(request):
 @api_view(['POST'])
 def forgotpass(request):
     data = {}
-    if User.objects.filter(username=request.data['username']).exists():
-        user = User.objects.get(username=request.data['username'])
+    if User.objects.filter(email=request.data['email']).exists():
+        user = User.objects.get(email=request.data['email'])
+
 
         sendingMail([user], 'forgotpass.html',message='')
 
         data['msg'] = "Email sent"
     else:
-        data['error'] = "Username is not valid."
+        data['error'] = "Email not foundls."
     return Response(data)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def logout(request):
+def logingout(request):
     if request.method=='GET':
         print('loging out!')
         return Response({'msg':'logout successfully.'})
@@ -358,7 +421,8 @@ def logout(request):
 @permission_classes([IsAuthenticated])
 def addFeedback(request):
     if request.method=='POST':
-        username = request.data['username']
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        username = user.username
         msg = request.data['msg']
 
         profile = Profile.objects.get(User__username=username)
@@ -381,8 +445,8 @@ def addFeedback(request):
 def account(request):
     if request.method=='POST':
         data={}
-
-        profile = Profile.objects.get(User__username=request.data['username'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id=user.id)
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
             
         return Response(data)
@@ -393,8 +457,7 @@ def account(request):
 @permission_classes([IsAuthenticated])
 def setFirstname(request):
     if request.method=='POST':
-        user = User.objects.get(username=request.data['username'])
-
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
 
         user.first_name = request.data['firstname']
         user.save()
@@ -402,7 +465,7 @@ def setFirstname(request):
 
         data={}
         
-        profile = Profile.objects.get(User__username=request.data['username'])
+        profile = Profile.objects.get(User__username=user.username)
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
                     
         
@@ -414,19 +477,12 @@ def setFirstname(request):
 @permission_classes([IsAuthenticated])
 def setLastname(request):
     if request.method=='POST':
-        user = User.objects.get(username=request.data['username'])
-
-
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
         user.last_name = request.data['lastname']
         user.save()
-
-
         data={}
-        
-        profile = Profile.objects.get(User__username=request.data['username'])
+        profile = Profile.objects.get(User__username=user.username)
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
-                    
-        
         return Response(data)
         
  
@@ -444,9 +500,8 @@ def setEmail(request):
             return Response({'error':'EMAIL ID is not valid.'})
 
 
-        
-        profile = Profile.objects.get(User__username=request.data['username'])
-        user = profile.User
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__username=user.username)
         user.email = request.data['email']
 
         if sendingMail([user], 'signupemail.html'):
@@ -467,9 +522,10 @@ def configEmail(request):
     if request.method=='POST':
         data={}
 
-        profile = Profile.objects.get(User__username=request.data['username'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__username=user.username)
         profile.save()
-        sendingMail([profile.User], 'signupemail.html')
+        sendingMail([user], 'signupemail.html')
         data['message'] = "Email sent for verification please verify."
         return Response(data)
 
@@ -478,19 +534,16 @@ def configEmail(request):
 @permission_classes([IsAuthenticated])
 def setPassword(request):
     if request.method=='POST':
-    
-        user = authenticate(username=request.data['username'], password=request.data['oldPassword'])
+        
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
 
-        if user is not None:
+        if user.check_password(request.data['oldPassword']):
             user.set_password(request.data['password'])
             user.save()
-
-
             data={}
-            
             profile = Profile.objects.get(User__username=request.data['username'])
             data['profile'] = ProfileSerializer(profile, context={'request':request}).data
-                        
+
             return Response(data)
         else:
             return Response({'msg':'err'})
@@ -502,12 +555,12 @@ def setMyAddr(request):
     if request.method=='POST':
         data={}
 
-        profile = Profile.objects.get(User__username=request.data['username'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__username=user.username)
         profile.Address = request.data['Address']
         profile.save()
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
             
-        
         return Response(data)
         
 
@@ -517,12 +570,12 @@ def setLoc(request):
     if request.method=='POST':
         data={}
 
-        profile = Profile.objects.get(User__username=request.data['username'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__username=user.username)
         profile.lat = request.data['lat']
         profile.lng = request.data['lng']
         profile.save()
         data['msg'] = 'Location updated.'
-            
         
         return Response(data)
    
@@ -542,45 +595,32 @@ def setMyNo(request):
         return Response(data)
 
 
-
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def setShopName(request):
     if request.method=='POST':
-        service = Service.objects.get(id=request.data['id'])
 
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        service = profile.Service.get(id=request.data['id'])
 
         service.ShopName = request.data['ShopName']
         service.VStatus = False
         service.save()
 
-
         data={}
-        
-        profile = Profile.objects.get(User__username=request.data['username'])
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
                     
-        return Response(data)
-        
-        
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def ShopCatagories(request):
-    if request.method=='GET':
-
-        data = {}
-        data['data']=ServicesCatagorySerializer(ServicesCatagory.objects.all(), 
-        many=True,context={'request':request}).data
-
         return Response(data)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def updateShopCatagory(request):
     if request.method=='POST':
-        service = Service.objects.get(id=request.data['serviceId'])
-        service.VStatus = False
+
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        service = profile.Service.get(id=request.data['id'])
 
         serviceCatagory = ServicesCatagory.objects.get(id=request.data['catagoryId'])
 
@@ -588,8 +628,6 @@ def updateShopCatagory(request):
         service.save()
 
         data={}
-                
-        profile = Profile.objects.get(User__username=request.data['username'])
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
                             
         return Response(data)
@@ -601,14 +639,14 @@ def updateShopCatagory(request):
 def updateMainImage(request):
     if request.method=='POST':
     
-        service = Service.objects.get(id=request.data['id'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        service = profile.Service.get(id=request.data['id'])
 
         service.MainImage = request.FILES.get('image')
         service.save()
 
         data={}
-                
-        profile = Profile.objects.get(User__username=request.data['username'])
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
                             
         return Response(data)
@@ -620,15 +658,17 @@ def updateMainImage(request):
 @permission_classes([IsAuthenticated])
 def updateImage(request):
     if request.method=='POST':
-    
-        img = Images.objects.get(id=request.data['id'])
+        
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        service = profile.Service.get(ServiceImages__id=request.data['id'])
+
+        img = service.ServiceImages.get(id=request.data['id'])
 
         img.Image = request.FILES.get('image')
         img.save()
 
         data={}
-                
-        profile = Profile.objects.get(User__username=request.data['username'])
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
                             
         return Response(data)
@@ -639,7 +679,9 @@ def updateImage(request):
 def addNewImage(request):
     if request.method=='POST':
     
-        service = Service.objects.get(id=request.data['id'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        service = profile.Service.get(id=request.data['id'])
 
         img = Images.objects.create(Image=request.FILES.get('image'))
 
@@ -648,10 +690,7 @@ def addNewImage(request):
         service.save()
         img.save()
 
-
         data = {}
-
-        profile = Profile.objects.get(User__username=request.data['username'])
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
 
         return Response(data)
@@ -662,14 +701,14 @@ def addNewImage(request):
 def setOpenTime(request):
     if request.method=='POST':
     
-        service = Service.objects.get(id=request.data['id'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        service = profile.Service.get(id=request.data['id'])
 
         service.OpenTime = request.data['openTime']
         service.save()
 
         data={}
-                
-        profile = Profile.objects.get(User__username=request.data['username'])
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
                             
         return Response(data)
@@ -681,14 +720,14 @@ def setOpenTime(request):
 def setCloseTime(request):
     if request.method=='POST':
     
-        service = Service.objects.get(id=request.data['id'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        service = profile.Service.get(id=request.data['id'])
 
         service.closeTime = request.data['closeTime']
         service.save()
 
         data={}
-                
-        profile = Profile.objects.get(User__username=request.data['username'])
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
                             
         return Response(data)
@@ -700,14 +739,14 @@ def setCloseTime(request):
 def setRentalStatus(request):
     if request.method=='POST':
     
-        service = Service.objects.get(id=request.data['id'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        service = profile.Service.get(id=request.data['id'])
 
         service.RentalStatus = request.data['rentalStatus']
         service.save()
 
         data={}
-                
-        profile = Profile.objects.get(User__username=request.data['username'])
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
                             
         return Response(data)
@@ -718,8 +757,8 @@ def setRentalStatus(request):
 def setGetNotification(request):
     if request.method=='POST':
         data={}
-                
-        profile = Profile.objects.get(User__username=request.data['username'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
         profile.emailNotification = request.data['getNotification']
         profile.save()
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
@@ -734,14 +773,14 @@ def setGetNotification(request):
 def setNoOfItems(request):
     if request.method=='POST':
     
-        service = Service.objects.get(id=request.data['id'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        service = profile.Service.get(id=request.data['id'])
 
         service.NoOfItems = request.data['noOfItems']
         service.save()
 
         data={}
-                
-        profile = Profile.objects.get(User__username=request.data['username'])
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
                             
         return Response(data)
@@ -753,14 +792,14 @@ def setNoOfItems(request):
 def setPriceType(request):
     if request.method=='POST':
     
-        service = Service.objects.get(id=request.data['id'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        service = profile.Service.get(id=request.data['id'])
 
         service.PriceType = request.data['priceType']
         service.save()
 
         data={}
-                
-        profile = Profile.objects.get(User__username=request.data['username'])
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
                             
         return Response(data)
@@ -772,7 +811,9 @@ def setPriceType(request):
 def updateServiceAddr(request):
     if request.method=='POST':
     
-        service = Service.objects.get(id = request.data['id'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        service = profile.Service.get(id=request.data['id'])
 
         service.lat = request.data['lat']
         service.lng = request.data['lng']
@@ -780,8 +821,6 @@ def updateServiceAddr(request):
         service.save()
 
         data={}
-                
-        profile = Profile.objects.get(User__username=request.data['username'])
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
                             
         return Response(data)
@@ -791,13 +830,14 @@ def updateServiceAddr(request):
 @permission_classes([IsAuthenticated])
 def deleteSearchName(request):
     if request.method=='POST':
-    
-        searchName = SearchName.objects.get(id=request.data['id'])
+        
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        service = profile.Service.get(SearchNames__id=request.data['id'])
+        searchName = service.SearchNames.get(id=request.data['id'])
         searchName.delete()
-
+        service.save()
         data={}
-            
-        profile = Profile.objects.get(User__username=request.data['username'])
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
                             
         return Response(data)
@@ -807,13 +847,14 @@ def deleteSearchName(request):
 @permission_classes([IsAuthenticated])
 def deleteImage(request):
     if request.method=='POST':
-    
-        img = Images.objects.get(id=request.data['id'])
+        
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        service = profile.Service.get(ServiceImages__id=request.data['id'])
+        img = service.ServiceImages.get(id=request.data['id'])
         img.delete()
 
         data={}
-                
-        profile = Profile.objects.get(User__username=request.data['username'])
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
         return Response(data)
 
@@ -823,16 +864,17 @@ def deleteImage(request):
 @permission_classes([IsAuthenticated])
 def addSearchName(request):
     if request.method=='POST':
-    
+        
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        service = profile.Service.get(id=request.data['serviceId'])
+
         searchName = SearchName.objects.create(Name=request.data['searchName'].upper())
-        service = Service.objects.get(id=request.data['serviceId'])
         service.SearchNames.add(searchName)
         searchName.save()
         service.save()
 
         data={}
-                
-        profile = Profile.objects.get(User__username=request.data['username'])
         data['profile'] = ProfileSerializer(profile, context={'request':request}).data
 
         return Response(data)
@@ -844,8 +886,9 @@ def addSearchName(request):
 def addNewService(request):
     if request.method=='POST':
 
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
 
-        profile = Profile.objects.get(User__username=request.data['username'])
         catagory = ServicesCatagory.objects.get(id=request.data['catagoryId'])
         
         service = Service.objects.create(
@@ -909,7 +952,8 @@ def productData(request):
         Service__id=request.data['productId']
     ), context={'request':request}).data
 
-    user = User.objects.get(username=request.data['Username'])
+    user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+    profile = Profile.objects.get(User__id = user.id)
     
     IService = InterestedService.objects.filter(User__username=request.data['Username']).exists()
     if IService:
@@ -920,9 +964,6 @@ def productData(request):
 
     IService1.Services.add(service)
     IService1.save()
-
-
-    profile = Profile.objects.get(User__username=request.data['Username'])
 
     for tag in service.SearchNames.all():
         profile.LastProductTags.add(tag)
@@ -937,8 +978,8 @@ def productData(request):
 @permission_classes([IsAuthenticated])
 def rentNow(request):
     data={}
-
-    profile = Profile.objects.get(User__username=request.data['username'])
+    user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+    profile = Profile.objects.get(User__id = user.id)
     if(profile.User.first_name=='' or profile.User.last_name=='' or profile.MobileNo=='' or profile.Address==''):
         data['error'] = 'Profile is not completed. Please Complete your profile first.'
     elif(profile.emailConfirmed is not True):
@@ -954,7 +995,8 @@ def rentNow(request):
 def rentNowConfirmed(request):
     data={}
 
-    profile = Profile.objects.get(User__username=request.data['username'])
+    user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+    profile = Profile.objects.get(User__id = user.id)
     consumerNo = request.data["consumerContact"]
     providerProfile = Profile.objects.get(id=request.data['profileId'])
     product = Service.objects.get(id=request.data['productId'])
@@ -989,18 +1031,21 @@ def rentNowConfirmed(request):
 def giveRating(request):
     if request.method=='POST':
 
-        service_exist = Service.objects.filter(RatedBy__username=request.data['user']).exists()
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+
+        service_exist = Service.objects.filter(RatedBy__id=user.id).exists()
 
         if service_exist:
             return Response({'msg':'You have rated that.'})
 
         service = Service.objects.get(id=request.data['productId'])
-        user = User.objects.get(username=request.data['user'])
+        rating = (service.Rating +(int(request.data['rating']))/10)/2,1
+        service.Rating = round(rating if rating<5 else 5)
 
-        service.Rating = round(( service.Rating + (int(request.data['rating']))/10)/2,1)
-
+        profile_rating = (profile.Rating + (int(request.data['rating']))/10)/2,1
         profile = Profile.objects.get(User__username=request.data['provider'])
-        profile.Rating = round(( profile.Rating + (int(request.data['rating']))/10)/2,1)
+        profile.Rating = round(profile_rating if profile_rating<5 else 5)
         profile.save()
         
         service.RatedBy.add(user)
@@ -1036,8 +1081,6 @@ def addServiceFeed(request):
         service.save()
         feed.save()
 
-
-
         data={}
         data['data']=ServiceSerializer(Service.objects.get(id=request.data['productId']),
         context={'request':request}).data
@@ -1054,8 +1097,10 @@ def addServiceFeed(request):
 def updateDesc(request):
     if request.method=='POST':
 
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
 
-        service = Service.objects.get(id=request.data['serviceId'])
+        service = profile.Service.get(id=request.data['serviceId'])
         service.VStatus = False
         
         service.Description = request.data['desc']
@@ -1076,8 +1121,9 @@ def removeItem(request):
 
 
         service = Service.objects.get(id=request.data['id'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
 
-        IService = InterestedService.objects.get(User__username=request.data['user'])
+        IService = InterestedService.objects.get(User__username=user.uername)
 
         IService.Services.remove(service)
 
@@ -1090,47 +1136,17 @@ def removeItem(request):
 
         return Response(data)
 
-def getPostData(Username,request):
+def getPostData(Username, request, PostsStartId=0):
 
     if Username is not None:
 
-        data = {}
-        data['data'] = []
-
-        profile = Profile.objects.get(User__username=Username)
-        
-        service_tags = profile.LastProductTags.all()
-           
-        for tag in service_tags:
-            for serv in ServiceSerializerForPost(Service.objects.filter(SearchNames__Name=tag.Name, Posts__Activated=True),
-                                             many=True, context={'request':request}).data:
-                if serv not in data['data']:
-                    data['data'].append(serv)
+        services = Service.objects.filter(Posts__Activated=True).exclude(Posts__LikedBy__username=Username).filter(id__gte=PostsStartId).order_by("-id").order_by('-Posts__TotalLikes')
+        if len(services)>12:
+            services = services[:10]
+        elif len(services)<12:
+            data=[]
+        data = ServiceSerializerForPost(services,many=True, context={'request':request}).data
             
-        
-        for serv in ServiceSerializerForPost(Service.objects.filter(SearchNames__Name=profile.LastSearchNotFound, Posts__Activated=True),many=True, 
-                                            context={'request':request}).data:
-            if serv not in data['data']:
-                data['data'].append(serv)
-
-                                            
-        for serv in ServiceSerializerForPost(Service.objects.filter(SearchNames__Name=profile.LastSearcheTag, Posts__Activated=True),many=True, 
-                                            context={'request':request}).data:
-            if serv not in data['data']:
-                data['data'].append(serv)
-
-        
-        for serv in ServiceSerializerForPost(Service.objects.filter(Type=profile.LastCategory, Posts__Activated=True), many=True, 
-                                            context={'request':request}).data:
-            if serv not in data['data']:
-                data['data'].append(serv)
-                
-        if len(data['data'])<=15:
-            for serv in ServiceSerializerForPost(Service.objects.filter(
-                Posts__Activated=True).order_by('-Posts__TotalLikes'), many=True, context={'request':request}).data:
-                if serv not in data['data']:
-                    data['data'].append(serv)
-
         return data
 
         
@@ -1139,8 +1155,17 @@ def getPostData(Username,request):
 @permission_classes([IsAuthenticated])
 def posts(request):
     if request.method=='POST':
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        data = getPostData(user.username,request)
 
-        data = getPostData(request.data['Username'],request)
+        return Response(data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def morePosts(request):
+    if request.method=='POST':
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        data = getPostData(user.username,request,PostsStartId=request.data["PostsStartId"])
 
         return Response(data)
 
@@ -1151,42 +1176,42 @@ def addPostComment(request):
     if request.method=='POST':
 
         post = Post.objects.get(id=request.data['postId'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
 
-        comment = PostComments.objects.create(Username=request.data['Username'],Comment=request.data['comment'])
+        comment = PostComments.objects.create(Username=user.username,Comment=request.data['comment'])
 
         post.Comments.add(comment)
         comment.save()
         post.save()
 
-
         if request.data['type']=='myPost':
-            profile = Profile.objects.get(User__username=request.data['Username'])
+            profile = Profile.objects.get(User__id = user.id)
             services = profile.Service.all()
             data={}
             data['data'] = ServiceSerializerForPost(services, many=True, context={'request':request}).data
 
         else:
-            data = getPostData(request.data['Username'],request)
+            data = PostCommentsSerializer(post.Comments, many=True, context={'request':request}).data
 
-        
         return Response(data)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def removePostComment(request):
     if request.method=='POST':
-
-        comment = PostComments.objects.get(id=request.data['commentId'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        comment = PostComments.objects.get(id=request.data['commentId'],Username=user.username)
         comment.delete()
 
         if request.data['type']=='myPost':
-            profile = Profile.objects.get(User__username=request.data['Username'])
+            profile = Profile.objects.get(User__id = user.id)
             services = profile.Service.all()
             data={}
             data['data'] = ServiceSerializerForPost(services, many=True, context={'request':request}).data
 
         else:
-            data = getPostData(request.data['Username'],request)
+            post = Post.objects.get(id=request.data['postId'])
+            data = PostCommentsSerializer(post.Comments, many=True, context={'request':request}).data
 
 
         return Response(data)
@@ -1197,9 +1222,9 @@ def removePostComment(request):
 @permission_classes([IsAuthenticated])
 def addPostCommentReply(request):
     if request.method=='POST':
-
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
         comment = PostComments.objects.get(id=request.data['commentId'])
-        reply = PostCommentsReplies.objects.create(Username=request.data['Username'],Reply=request.data['reply'])
+        reply = PostCommentsReplies.objects.create(Username=user.username,Reply=request.data['reply'])
 
         comment.Replies.add(reply)
         reply.save()
@@ -1207,13 +1232,14 @@ def addPostCommentReply(request):
 
 
         if request.data['type']=='myPost':
-            profile = Profile.objects.get(User__username=request.data['Username'])
+            profile = Profile.objects.get(User__username=user.username)
             services = profile.Service.all()
             data={}
             data['data'] = ServiceSerializerForPost(services, many=True, context={'request':request}).data
 
         else:
-            data = getPostData(request.data['Username'],request)
+            post = Post.objects.get(id=request.data['postId'])
+            data = PostCommentsSerializer(post.Comments, many=True, context={'request':request}).data
 
 
         return Response(data)
@@ -1224,17 +1250,21 @@ def addPostCommentReply(request):
 def removePostCommentReply(request):
     if request.method=='POST':
 
-        reply = PostCommentsReplies.objects.get(id=request.data['replyId'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+
+        reply = PostCommentsReplies.objects.get(id=request.data['replyId'], Username=user.username)
         reply.delete()
 
         if request.data['type']=='myPost':
-            profile = Profile.objects.get(User__username=request.data['Username'])
+            profile = Profile.objects.get(User__username=user.username)
             services = profile.Service.all()
             data={}
             data['data'] = ServiceSerializerForPost(services, many=True, context={'request':request}).data
 
         else:
-            data = getPostData(request.data['Username'],request)
+            post = Post.objects.get(id=request.data['postId'])
+            data = PostCommentsSerializer(post.Comments, many=True, context={'request':request}).data
 
         return Response(data)
 
@@ -1245,37 +1275,26 @@ def removePostCommentReply(request):
 def addPostLike(request):
     if request.method=='POST':
 
-        profile = Profile.objects.get(User__username=request.data['Username'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
         post = Post.objects.get(id=request.data['postId'])
 
-        if post.LikedBy.filter(id=profile.User.id).exists():
-            
-            post.LikedBy.remove(profile.User)
+        if post.LikedBy.filter(id=user.id).exists():
             post.TotalLikes = int(post.TotalLikes)-1
+            post.LikedBy.remove(user)
         else:
-        
-            post.LikedBy.add(profile.User)
             post.TotalLikes = int(post.TotalLikes)+1
-
-        service = Service.objects.get(Posts__id=post.id)
-
-        plan = Plans.objects.get(Open=True, PlanName='250')
-
-        if service in plan.PlanServices.all():
-            pass
-        elif int(post.TotalLikes)>250 :
-            post.Activated=False
+            post.LikedBy.add(user)
         post.save()
-
 
         if request.data['type']=='myPost':
             services = profile.Service.all()
             data={}
             data['data'] = ServiceSerializerForPost(services, many=True, context={'request':request}).data
-
         else:
-            data = getPostData(request.data['Username'],request)
-
+            data = {}
+            data['LikedBy'] = UserSerializer(post.LikedBy, many=True, context={'request':request}).data
+            data['TotalLikes'] = post.TotalLikes
         return Response(data)
 
 
@@ -1285,22 +1304,18 @@ def addPostLike(request):
 def savePost(request):
     if request.method=='POST':
 
-        profile = Profile.objects.get(User__username=request.data['Username'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
 
         service = Service.objects.get(id=request.data['serviceId'])
 
         if profile.SavedServices.filter(id=service.id).exists():
-            
             profile.SavedServices.remove(service)
-
             profile.save()
             return Response({'msg':'Service removed'})
         else:
-        
             profile.SavedServices.add(service)
-
             profile.save()
-
             return Response({'msg':'Service saved'})
 
 
@@ -1309,15 +1324,10 @@ def savePost(request):
 def myPosts(request):
     if request.method=='POST':
 
-        if Profile.objects.filter(User__username=request.data['Username']).exists():
-            profile = Profile.objects.get(User__username=request.data['Username'])
-
-        else:
-            return Response({'msg':'You are not a Service Provider.'})
-            
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
         services = profile.Service.all()
         data = ServiceSerializerForPost(services, many=True, context={'request':request}).data
-
         return Response(data)
 
 
@@ -1326,34 +1336,16 @@ def myPosts(request):
 def activatePostTogle(request):
     if request.method=='POST':
 
-        post = Post.objects.get(id=request.data['postId'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        post = profile.Service.get(Posts__id=request.data["postId"]).Posts(id=request.data["postId"])
 
         if post.Activated:
             post.Activated = False
-
         else:
-
-            plan = Plans.objects.get(Open=True, PlanName='250')
-
-            if Service.objects.get(id=request.data['serviceId']) in plan.PlanServices.all():
-                post.Activated = True
-
-            else:
-
-                if post.TotalLikes>250:
-                    return Response({'msg':'Call us to reactivate. Your post has over 250 likes'})
-
-                else:
-
-                    post.Activated = True
-
+            post.Activated = True
         post.save()
 
-        if Profile.objects.filter(User__username=request.data['Username']).exists():
-            profile = Profile.objects.get(User__username=request.data['Username'])
-        else:
-            return Response({'msg':'You are not a Service Provider.'})
-  
         services = profile.Service.all()
         data = ServiceSerializer(services, many=True, context={'request':request}).data
             
@@ -1365,8 +1357,10 @@ def activatePostTogle(request):
 @permission_classes([IsAuthenticated])
 def addNewPost(request):
     if request.method=='POST':
-
-        service = Service.objects.get(id=request.data['selectedServiceId'])
+        
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
+        service = profile.Service.get(id=request.data['selectedServiceId'])
 
         if service.Posts.count()>3:
             return Response({'msg':'You cannot add more than 3 posts per service.'})
@@ -1388,8 +1382,6 @@ def addNewPost(request):
         post.save()
         service.save()
 
-        
-        profile = Profile.objects.get(User__username=request.data['Username'])
         services = profile.Service.all()
         data = ServiceSerializerForPost(services, many=True, context={'request':request}).data
         return Response(data)
@@ -1399,7 +1391,8 @@ def addNewPost(request):
 def savedServices(request):
     if request.method=='POST':
 
-        profile = Profile.objects.get(User__username=request.data['Username'])
+        user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
+        profile = Profile.objects.get(User__id = user.id)
         
         data={}
         data['data']=ServiceSerializerForMainPage(profile.SavedServices.all(), many=True, 
@@ -1421,8 +1414,9 @@ def requestedServices(request):
 @api_view(['POST'])
 def completedRequestService(request):
     data={}
+    user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
 
-    toComplete = RequestedService.objects.get(id=request.data['id'])
+    toComplete = RequestedService.objects.get(id=request.data['id'], User__id=user.id)
     toComplete.completed=True
     toComplete.save()
 
@@ -1432,14 +1426,13 @@ def completedRequestService(request):
 
 @api_view(['POST'])
 def addingServiceRequest(request):
-    user = User.objects.get(username=request.data['username'])
+    user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
     newData = RequestedService.objects.create(
         User = user,
         Title = request.data['title'],
         Description = request.data['description'],
         ContactInfo = request.data['contactInfo']
     )
-
     newData.save()
     data={}
     data['data']=RequestedServiceSerializer(RequestedService.objects.filter(completed=False), many=True, 
