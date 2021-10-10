@@ -58,7 +58,7 @@ def sendVerifyEmail(request):
     success = 0
     if user.is_superuser:
         subject = 'RenYug Email Verification'
-        for user in Profile.objects.filter(emailConfirmed=False):
+        for user in Profile.objects.filter(emailConfirmed=False, emailNotification=True):
             html_message = render_to_string('verifyEmail.html', {'first_name': user.User.username, 'id': idFormater(user.User.id)})
             plain_message = strip_tags(html_message)
             try:
@@ -78,7 +78,7 @@ def sendGetProductEmail(request):
     failed = 0
     success = 0
     if user.is_superuser:
-        subject = 'RenYug Management Team'
+        subject = 'RenYug Beginner Mail'
         for user in Profile.objects.filter(emailNotification=True):
             html_message = render_to_string('getProductEmail.html', {'first_name': user.User.username})
             plain_message = strip_tags(html_message)
