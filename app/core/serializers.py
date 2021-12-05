@@ -65,6 +65,9 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'password',
             'is_superuser'
         )
+        extra_kwargs={
+            'password':{'write_only':True}
+        }
 
 class ImagesSerializer(serializers.ModelSerializer):
     class Meta:
