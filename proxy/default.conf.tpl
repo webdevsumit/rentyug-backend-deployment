@@ -14,8 +14,8 @@ server {
 }
 
 server {
-    listen 80;
     listen 443 ssl;
+    ssl on;
 
     server_name  rentyug-backend.live;
     ssl_certificate /etc/nginx/certs/certificate.crt;
