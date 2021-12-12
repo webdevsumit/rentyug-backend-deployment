@@ -18,7 +18,7 @@ server {
     ssl on;
 
     server_name  rentyug-backend.live;
-    ssl_certificate /etc/nginx/certs/certificate.crt;
+    ssl_certificate /etc/nginx/certs/ca_bundle.crt;
     ssl_certificate_key /etc/nginx/certs/private.key;
 
     location /static {
