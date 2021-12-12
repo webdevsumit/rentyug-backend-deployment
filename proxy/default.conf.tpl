@@ -14,7 +14,7 @@ server {
 }
 
 server {
-    listen 443 ssl;
+    listen 443;
     ssl on;
 
     server_name  rentyug-backend.live;
