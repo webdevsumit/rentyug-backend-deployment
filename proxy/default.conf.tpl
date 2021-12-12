@@ -14,11 +14,11 @@ server {
 }
 
 server {
-    listen 443;
-    ssl on;
+    listen 80;
+    listen 443 ssl;
 
     server_name  rentyug-backend.live;
-    ssl_certificate /etc/nginx/certs/ca_bundle.crt;
+    ssl_certificate /etc/nginx/certs/certificate.crt;
     ssl_certificate_key /etc/nginx/certs/private.key;
 
     location /static {
