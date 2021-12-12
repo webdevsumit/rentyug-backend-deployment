@@ -18,8 +18,8 @@ server {
     ssl on;
 
     server_name  rentyug-backend.live;
-    ssl_certificate /etc/nginx/certs/certificate.crt;
-    ssl_certificate_key /etc/nginx/certs/private.key;
+    ssl_certificate /etc/nginx/certs/rb-certificate.crt;
+    ssl_certificate_key /etc/nginx/certs/rb-private.key;
 
     location /static {
         alias /vol/static;
