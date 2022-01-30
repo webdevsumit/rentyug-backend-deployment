@@ -72,7 +72,7 @@ class Post(models.Model):
 
 
 class Service(models.Model):
-    Rating = models.FloatField(default=4)
+    Rating = models.FloatField(default=5)
     RatedBy = models.ManyToManyField(User, blank = True)
     ServiceImages = models.ManyToManyField(Images, blank=True)
     MainImage = models.ImageField(upload_to='serviceMainImages')

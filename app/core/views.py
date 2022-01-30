@@ -896,6 +896,7 @@ def addNewService(request):
                 ShopName=request.data['ShopName'],
                 Type=catagory,
                 OpenTime=request.data['OpenTime'],
+                Description=request.data['description'],
                 closeTime=request.data['CloseTime'],
                 PriceType=request.data['PriceType'],
                 Address=profile.Address,
@@ -930,9 +931,9 @@ def search(request):
         profile.LastSearchedTags.add(lastSearchedTag)
 
         if Service.objects.filter(SearchNames__Name=searchName).exists():
-            profile.LastSearcheTag = searchName
+            profile.LastSearcheTag = profile.LastSearcheTag + ',' + searchName
         else:
-            profile.LastSearchNotFound = searchName
+            profile.LastSearchNotFound = profile.LastSearchNotFound + ',' +searchName
 
         profile.save()
 
@@ -979,13 +980,13 @@ def productData(request):
 def rentNow(request):
     data={}
     user = Token.objects.get(key = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]).user
-    profile = Profile.objects.get(User__id = user.id)
-    if(profile.User.first_name=='' or profile.User.last_name=='' or profile.MobileNo=='' or profile.Address==''):
-        data['error'] = 'Profile is not completed. Please Complete your profile first.'
-    elif(profile.emailConfirmed is not True):
-        data['error'] = 'Please verify your email first. This is neccessary for security reasons.'
-    else:
-        data['ContactNo'] = profile.MobileNo
+    # profile = Profile.objects.get(User__id = user.id)
+    # if(profile.User.first_name=='' or profile.User.last_name=='' or profile.MobileNo=='' or profile.Address==''):
+    #     data['error'] = 'Profile is not completed. Please Complete your profile first.'
+    # elif(profile.emailConfirmed is not True):
+    #     data['error'] = 'Please verify your email first. This is neccessary for security reasons.'
+
+    data['ContactNo'] = profile.MobileNo
     return Response(data)
 
     
