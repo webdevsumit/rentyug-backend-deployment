@@ -917,6 +917,7 @@ def addNewService(request):
 @api_view(['POST'])
 def search(request):
     searchName = request.data['searchName'].upper()
+    
 
     s_data = {}
     
